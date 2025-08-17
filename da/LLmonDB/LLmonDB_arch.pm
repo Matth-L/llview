@@ -225,7 +225,7 @@ sub archive_data_by_limit_eval_expression {
                                             });
 	  printf("%-35s LLmonDB:        -> query max                 %25s/%-40s in %8.5fs $col\n",
 		 $self->{INSTNAME},$db,$table,time()-$mtime);
-
+	  $maxval_cache->{$col}=0 if(!defined($maxval_cache->{$col}));
         }
         my $val=$self->timeexpr_to_sec($subvalue);
         if($val >= 0 ) {
