@@ -21,6 +21,7 @@ use Time::Local;
 use Time::HiRes qw ( time );
 use DBI;
 use DBD::SQLite;
+use DBD::SQLite::BundledExtensions;
 
 sub new {
   my $self    = {};
@@ -115,6 +116,7 @@ sub init_db {
   $dbh->do("PRAGMA busy_timeout= 5000");
   $dbh->do("PRAGMA cache_size = 8000000");
   $dbh->do("PRAGMA journal_mode = WAL");
+  $dbh->do("PRAGMA optimize");
   $dbh->{sqlite_allow_multiple_statements}=1;
   # should be enabled only for write access !!! TODO
   #    $dbh->do("PRAGMA auto_vacuum = INCREMENTAL");
@@ -124,6 +126,7 @@ sub init_db {
   my $eots=time();
   $self->{EOTS}=$eots;
   $self->mycommit();
+  DBD::SQLite::BundledExtensions->_load_extension($dbh,"series");
   $self->LOGREPORT($self->{DBNAME},"open",caller(),"");
 }
 
@@ -318,6 +321,7 @@ sub close_db {
 
   # disconnect from the database
   print "$self->{INSTNAME} disconnected from db $self->{FNAME} at ts=",time(),"\n" if($self->{VERBOSE}==2);
+  $self->{DBH}->do("PRAGMA optimize");
   $self->{DBH}->disconnect() if $self->{DBH};
   $self->{DBINIT}=0;
   
