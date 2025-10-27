@@ -18,7 +18,7 @@ use Data::Dumper;
 use Time::Local;
 use Time::HiRes qw ( time );
 use POSIX qw(strftime);
-use LML_da_util qw( sec_to_date_yymmdd );
+use LML_da_util qw( sec_to_date_iso );
 
 sub replace_vars {
   my($self) = shift;
@@ -46,7 +46,7 @@ sub replace_tsvars {
     # printf( "TS_STARTOFTODAY: %d - %d diff=%.2f \n",$nowts,$ts_startoftoday,($nowts-$ts_startoftoday)/3600.0);
   }
   if($new_sql=~/DATE_NOW/) {
-    my $ldate=&sec_to_date_yymmdd($nowts);
+    my $ldate=&sec_to_date_iso($nowts);
     $new_sql=~s/DATE_NOW/$ldate/gs;
   }
   if($new_sql=~/TS_NOW/) {

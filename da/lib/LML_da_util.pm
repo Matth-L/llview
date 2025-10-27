@@ -18,7 +18,7 @@ use Exporter 'import';
 our @EXPORT_OK = qw( init_globalvar substitute_recursive
                     logmsg system_call check_folder
                     stacktrace get_date _max _min remove_old_logs
-                    sec_to_date sec_to_date_dir_wo_hhmmss sec_to_date_yymmdd
+                    sec_to_date sec_to_date_dir_wo_hhmmss sec_to_date_iso
                     );
 
 # SUPPORT FUNCTIONS
@@ -185,7 +185,7 @@ sub sec_to_date {
 }
 
 # Transform from seconds (timestamp) to date format ISO 8601 format
-sub sec_to_date_yymmdd {
+sub sec_to_date_iso {
   my ($lsec) = @_;
 
   # Create a Time::Piece object from the epoch seconds.
