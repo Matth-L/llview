@@ -203,6 +203,19 @@ sub update_structure {
             }
           }
         }
+      } elsif ($ref->{type} eq 'loadmemnode') {
+        my $nodeinfo=$fh->{DATA}->{INFODATA}->{$key};
+        my $nodeid = $fh->{DATA}->{OBJECT}->{$key}->{name};
+
+        $nodeinfo->{id}=$nodeid;
+        if(exists($nodeinfo->{mem_ts})) { 
+          if($nodeinfo->{mem_ts}=~/\d+/) {
+            if(!exists($data->{LMNODES_BY_NODEID}->{$nodeid})) {
+              push(@{$data->{LMNODE_ENTRIES}},$nodeinfo);
+              $data->{LMNODES_BY_NODEID}->{$nodeid}=$nodeinfo;
+            }
+          }
+        }
       } elsif ($ref->{type} eq 'cpuinfo') {
         my $nodeinfo=$fh->{DATA}->{INFODATA}->{$key};
         my $nodeid = $fh->{DATA}->{OBJECT}->{$key}->{name};
@@ -222,7 +235,7 @@ sub update_structure {
 
         if(exists($nodeinfo->{percore})) {
           my @pairs=(split(",",$nodeinfo->{percore}));
-	  # my $numphyscore=( scalar @pairs ) ;
+          # my $numphyscore=( scalar @pairs ) ;
           my $numphyscore=( scalar @pairs ) / 2;
           my $pcores;
           foreach my $pair (@pairs) {
