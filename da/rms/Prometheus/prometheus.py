@@ -8,6 +8,7 @@
 #
 # Contributors:
 #    Filipe Guimarães (Forschungszentrum Juelich GmbH)
+#    Matthias Lapu (CEA)
 
 import argparse
 import logging
@@ -64,7 +65,12 @@ def cpus(options: dict, cpus_info) -> dict:
   cpusextra = {}
   # Updating the jobs dictionary by adding or removing keys
   for node,cpuinfo in list(cpus_info.items()):
-    ncores = int(len(cpuinfo['coreidle'].keys())/nsmts/nsockets)
+    # max(X,1) prevents a division by 0 when there is only 1 CPU with default
+    # 2 smt, 1 socket.
+    # len(cpuinfo['coreidle].keys()) = 1, nsmts = 2, nsockets = 1
+    # => int(1/2/1) => int(0.5) => 0
+    # so core = coreid%0 => Division by Zero
+    ncores = max(int(len(cpuinfo['coreidle'].keys())/nsmts/nsockets),1)
 
     # Store node_names of this node
     node_names = set()
