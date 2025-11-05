@@ -302,7 +302,7 @@ def nodeinfo(options: dict, nodes_info) -> dict:
     UsedMem = None
 
     if not (re.match(r'^\d+$',nodeinfo['FreeMem'])): #.e.g FreeMem=N/A
-      log.warning(f"FreeMem might be N/A, falling back to AllocMem \n")
+      log.warning(f"FreeMem {nodeinfo['FreeMem']} not an integer for node {nodename}, falling back to AllocMem \n")
 
     elif (re.match(r'^\d+$',nodeinfo['RealMemory'])) and (re.match(r'^\d+$',nodeinfo['FreeMem'])):
 
