@@ -23,6 +23,7 @@ import requests
 from urllib.parse import quote
 from copy import deepcopy
 from subprocess import check_output
+from typing import Optional
 # Optional: keyring
 try:
     import keyring  # pyright: ignore [reportMissingImports]
@@ -206,7 +207,7 @@ class Info:
     """
     return not bool(self._dict)
 
-  def query(self, metrics, prefix="", stype="", cached_queries = {}, start_ts=None):
+  def query(self, metrics, prefix="", stype="", regex="", cached_queries = {}, start_ts=None):
     """
     This function will loop through the metrics given in the list 'metrics'
     and perform them in the server defined in self.
@@ -325,6 +326,9 @@ class Info:
             if has_replace and pid in metric['replace']:
               pid = self.substitute_placeholders(metric['replace'][pid], metric_dict)
             
+            # Applying regex to pid
+            pid = self.apply_regex(pid, regex)
+
             gpu = int(metric_dict['device'].replace('nvidia',''))
             id = f"{pid}_{gpu:02d}"
             
@@ -351,11 +355,14 @@ class Info:
           for instance in data:
             metric_dict = instance['metric']
             pid = metric_dict[id_from]
-            id = pid
 
             if has_replace and pid in metric['replace']:
               pid = self.substitute_placeholders(metric['replace'][pid], metric_dict)
-              id = pid # ID must be updated if pid is replaced
+
+            # Applying regex to pid
+            pid = self.apply_regex(pid, regex)
+
+            id = pid
 
             # Use int() and float() - much faster than ast.literal_eval()
             cpu_core = int(metric_dict['cpu'])
@@ -381,12 +388,15 @@ class Info:
           for instance in data:
             metric_dict = instance['metric']
             pid = metric_dict[id_from]
-            id = pid
 
             if has_replace and pid in metric['replace']:
               pid = self.substitute_placeholders(metric['replace'][pid], metric_dict)
-              id = pid # ID must be updated if pid is replaced
-            
+
+            # Applying regex to pid
+            pid = self.apply_regex(pid, regex)
+
+            id = pid
+
             # Use float() instead of slow ast.literal_eval()
             value = float(instance['value'][1])
 
@@ -432,6 +442,28 @@ class Info:
     self._dict |= self._raw
     self.log.debug(f"Done with queries\n")
     return cached_queries
+
+  def apply_regex(self, input_string: str, regex: Optional[str]) -> str:
+    """
+    Applies a regex to a string to extract a substring.
+
+    - If the regex is valid and finds a match, returns the extracted part.
+    - If the regex is None, empty, or finds no match, returns the original input string.
+    """
+    # If regex is None or an empty string, return the initial input
+    if not regex:
+      return input_string
+
+    # Otherwise, apply the regex
+    match = re.search(regex, input_string)
+
+    if match:
+      # Prefer the first captured group '(...)' if it exists
+      return match.group(1) if match.groups() else match.group(0)
+    else:
+      # If no match is found, return the original string
+      self.log.warning(f"No match was found using regex {regex} on {input_string}. Using original input...")
+      return input_string
 
   def substitute_placeholders(self, template: str, values: dict) -> str:
     """
@@ -1012,6 +1044,7 @@ def main():
                                       file['metrics'],
                                       prefix=file.get('prefix','i'),
                                       stype=file.get('type','item'),
+                                      regex=file.get('regex'),
                                       cached_queries = cached_queries,
                                       start_ts = start_time,
                                     )
