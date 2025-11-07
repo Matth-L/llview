@@ -54,6 +54,7 @@ prometheus:
       LML: './cores.percore_LML.xml'
       type: 'coreinfo'
       prefix: 'ci'
+      # regex: '^(.+):.*$'
       metrics:
         coreidle:
           query: 'sum by (instance, cpu)(irate(node_cpu_seconds_total{job="node-compute"}[5m]))'
