@@ -59,51 +59,116 @@ def cpus(options: dict, cpus_info) -> dict:
   # Getting information from the steps
   log.info("Adding extra information for cpus...\n")
 
-  # Default is using 2 smt (i.e., 1 logiccore) when 'smt' not given in options
+  # Default is using 2 smt (i.e., 1 physical + 1 logic core) when 'smt' not given in options
   nsmts = options.get('smt',2)
+  # Default is returning all values in a node, not separating per socket
   nsockets = options.get('sockets',1)
+  # Separating in two possible topologies, that can be given on the config: 
+  #   - 'blocked' (default): Assumes all primary cores (SMT0) are listed first,
+  #     followed by all secondary cores (SMT1), etc.
+  #     (e.g., 0-127 are SMT0, 128-255 are SMT1).
+  #   - 'interleaved': Assumes SMT threads for a single core are adjacent.
+  #     (e.g., 0,1 are for core0; 2,3 are for core1).
+  topology = options.get('topology','blocked')
+  
+  # Threshold to consider a core used 
+  # (default: if usage is above 25% - i.e., idle is below 75% -, the core is considered to be used)
+  usage_threshold = 1 - options.get('usage_threshold',0.25)
 
+  # Create a new dictionary to hold the results, since the node_names will be potentially changed
   cpusextra = {}
+  logical_cores_per_scope = {} 
+
   # Updating the jobs dictionary by adding or removing keys
   for node,cpuinfo in list(cpus_info.items()):
-    # max(X,1) prevents a division by 0 when there is only 1 CPU with default
-    # 2 smt, 1 socket.
-    # len(cpuinfo['coreidle].keys()) = 1, nsmts = 2, nsockets = 1
-    # => int(1/2/1) => int(0.5) => 0
+    # Getting total number of cores on the node from the list of keys
+    total_cores = len(cpuinfo['coreidle'])
+
+    # Calculating required data for core mapping on each topology
+    # max(X,1) are safeguards to prevent division by 0
+    # e.g., when there is only 1 CPU with default 2 smt, 1 socket.
+    # len(cpuinfo['coreidle].keys()) = 1, nsmts = 2, nsockets = 1 => int(1/2/1) => int(0.5) => 0
     # so core = coreid%0 => Division by Zero
-    ncores = max(int(len(cpuinfo['coreidle'].keys())/nsmts/nsockets),1)
+    total_physical_cores, logical_cores_per_socket = 0, 0
+    if topology == 'blocked':
+      # The total number of primary cores (size of each block)
+      total_physical_cores = max(int(total_cores / nsmts), 1)
+      # Separating each block into sockets
+      phys_cores_per_socket = max(int(total_physical_cores / nsockets), 1)
+    elif topology == 'interleaved':
+      # Number of physical cores per socket
+      phys_cores_per_socket = max(int(total_cores / nsmts / nsockets), 1)
+      # Total number of cores (physical + logical) in each socket
+      logical_cores_per_socket = phys_cores_per_socket * nsmts
+    else:
+      raise ValueError(f"Unknown topology: '{topology}'. Supported values are 'blocked', 'interleaved'.")
+
+    # This will produce a usage range of 0 to nsmts (e.g., 0-200% for 2 SMTs)
+    normalization_factor = phys_cores_per_socket
 
     # Store node_names of this node
-    node_names = set()
     for coreid,coreidle in cpuinfo['coreidle'].items():
-      # Extracting position of core from coreid
-      core = coreid%ncores
-      core_idx = int(coreid/ncores)
-      smt = int(core_idx/nsockets)
-      socket = core_idx%nsockets
 
-      # Add results node or per socket, if the later is given in the options
+      if topology == 'blocked':
+        # Extracting SMT thread index by which block the coreid is in.
+        # (e.g., for 2 SMTs, coreids 0-127 are smt=0, 128-255 are smt=1)
+        smt = int(coreid / total_physical_cores)
+        # Calculating an "effective" core ID within the physical block
+        # (e.g., coreid 128 (first logical) maps to effective_coreid 0)
+        effective_coreid = coreid % total_physical_cores
+        # Extracting the socket based on the effective core ID.
+        # (e.g., for 64 cores/socket, effective_coreid 64-127 are socket 1)
+        socket = int(effective_coreid / phys_cores_per_socket)      
+      else: # 'interleaved'
+        # Calculating the socket the core belongs to
+        # (e.g., for 2 sockets, coreids 0-127 are socket=0, 128-255 are socket=1)
+        socket = int(coreid / logical_cores_per_socket)
+        # Calculating the SMT thread index (0 for the first thread on a core, 1 for the second, etc.)
+        # by looking at the coreid's position within its socket's block of CPUs
+        effective_coreid = coreid % logical_cores_per_socket
+        smt = effective_coreid % nsmts
+
+      # Create the node name, adding socket suffix if the later is given in the options
       node_name = f"{node}{'' if nsockets == 1 else f'_{socket:02d}'}"
-      node_names.add(node_name)
-      cpusextra.setdefault(node_name,{})
 
-      cpusextra[node_name]['usage'] = cpusextra[node_name].get('usage', 0) + (1 - coreidle)
+      # Initialize the dictionary for this node_name, in case it doesn't exist:
+      socket_data = cpusextra.setdefault(node_name, {
+          'id': node_name,
+          'cpu_ts': cpuinfo['cpu_ts'],
+          '__prefix': cpuinfo['__prefix'],
+          '__type': cpuinfo['__type'],
+          'usage': 0,
+          'physcoresused': 0,
+          'logiccoresused': 0,
+      })
+
+      # Aggregate the data for core usage on this socket/node
+      socket_data['usage'] += (1 - coreidle)
+      
+      # A core is considered "used" if its idle time is below a threshold (e.g., 75% by default)
+      is_used = int(coreidle < usage_threshold)
+      
+      # smt == 0 is the primary "physical" thread. All others are logical.
+      # This logic now correctly generalizes to more than 2 SMTs.
       if smt == 0:
-        cpusextra[node_name]['physcoresused'] = cpusextra[node_name].get('physcoresused', 0) + int(coreidle<0.75)
+        socket_data['physcoresused'] += is_used
       else:
-        # TODO: This works for up to 2 SMTs, but more than that would sum together. Must be generalised.
-        cpusextra[node_name]['logiccoresused'] = cpusextra[node_name].get('logiccoresused', 0) + int(coreidle<0.75)
+        socket_data['logiccoresused'] += is_used
 
-    # Moving information from node to node/socket info
-    for node_name in node_names:
-      cpusextra[node_name]['id'] = node_name
-      cpusextra[node_name]['cpu_ts'] = cpuinfo['cpu_ts']
-      cpusextra[node_name]['__prefix'] = cpuinfo['__prefix']
-      cpusextra[node_name]['__type'] = cpuinfo['__type']
-      cpusextra[node_name]['usage'] = cpusextra[node_name]['usage']/ncores
+      # Storing number of logical cores to calculate average usage below
+      logical_cores_per_scope[node_name] = normalization_factor
 
-    # Removing original node, as the information was already carried to the new (per node or per socket)
-    del cpus_info[node]
+  # After processing all nodes, we need to normalize the aggregated 'usage' values.
+  for node_name, data in cpusextra.items():
+    # The total usage is the sum of usages of all logical cores in the socket
+    # To get the average, we divide by the number of logical cores in that socket
+    # For nsockets == 1, this is the total for the whole node
+    num_cpus = logical_cores_per_scope.get(node_name, 0)
+    if num_cpus > 0:
+      data['usage'] /= num_cpus
+
+  # Replace the original dictionary with the new one, containing new variables and possible per socket values
+  cpus_info = cpusextra
 
   return cpusextra
 
