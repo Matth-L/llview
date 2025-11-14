@@ -478,6 +478,13 @@ class Info:
             id_data[name_ts_key] = instance['value'][0]
             id_data['id'] = id
 
+
+            # add additionnal data related to the query, that are not numeric related, .e.g
+            # metric_dict = {'instance': 'X', 'model_name': 'Intel(R) Core(TM) i5'}, 'value': [X, '1']
+            for k,v in metric_dict.items():
+              if k!= 'instance':
+                id_data[k] = v
+
       # If instance does not contain the key 'metric' (e.g., SEMS)
       else:
         # `data` is a dictionary where keys are the IDs.

@@ -413,6 +413,12 @@ sub update_structure {
         }
       } else {
         printf(STDERR "\t [LML_DBupdate_file] WARNING: scan keys, unknown type %s\n",$ref->{type});
+        my $nodeinfo=$fh->{DATA}->{INFODATA}->{$key};
+        my $nodeid = $fh->{DATA}->{OBJECT}->{$key}->{name};
+
+        foreach $key (keys(%{$nodeinfo})) {
+          $data->{DEFAULT_BY_NODEID}->{$nodeid}->{$key}=$nodeinfo->{$key}; #DEFAULT_BY_NODEID should be accessible now so the value "model_name" also
+        }
       }
     }
   } # foreach $fh
