@@ -23,5 +23,4 @@ When a new source of metrics become available, there are a few steps that must b
     * Finally, when the information is available to JuRepTool for each job, the metrics can be added on the job reports via their configuration in `${LLVIEW_CONF}/jureptool/plots.yml`
 
 
-
-> See an example : [here](./add_metrics_example.md)
+See an [Example on how to add a new metric here](./addmetrics_example.md).

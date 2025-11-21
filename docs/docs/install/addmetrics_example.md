@@ -1,10 +1,7 @@
-# Adding a new metric - Example
-
-*Example: Adding CPU Model*
-
+# Example: Adding CPU Model to LLview
+Author: Matthias Lapu - CEA
 
 This is a step-by-step walkthrough from the beginning (collection) to end (visualisation) on how to add an example metric to LLview. Please read it fully to understand. To make this simple, we'll add the CPU model as a new metric. Since the collection is done on Prometheus, this guide will only concern the Server part of LLview.
-
 
 Let’s start with a quick recap of the workflow needed to add a new metric:
 
@@ -15,8 +12,7 @@ Let’s start with a quick recap of the workflow needed to add a new metric:
 5. Add the data to the visualization.
 
 
-# Cheat sheet of files to be modified
-
+## Cheat sheet of files to be modified
 
 
 | Step | File Path                                                                  | Purpose                                                                   |
@@ -45,7 +41,6 @@ First, if not done already, in your Prometheus `node_exporter` configs, make sur
 
 *For this tutorial, node_exporter version 1.9.1 was used.*
 
-
 We’ll build the query:
 ```promql
 max by (instance, model_name) (node_cpu_info{job="node-compute"})
@@ -55,11 +50,9 @@ This gives us the `model_name`, which is the metric we’re interested in.
 
 We’ll need LLview to run this query and create an LML file, which will later be used to update the database.
 
-## Configuration
+### Configuration
 
-
-To create this file, append this part to `configs/plugins/promet.yml` :
-
+To create this file, append this part to `configs/plugins/promet.yml`:
 
 ```yaml
 prometheus:
@@ -82,11 +75,12 @@ prometheus:
           cache: true
       mapping:
         md_ts: "md_ts"
-        model_name : "model_name"
+        model_name: "model_name"
 ```
 
-This creates :
-- A new file named : `model_cpu_LML.xml`
+This creates:
+
+- A new file named: `model_cpu_LML.xml`; 
 - With the default type to add any kind of node metrics
 - The mapping allows LLview to get the `model_name` from the query and add it to the LML file.
 
@@ -99,7 +93,7 @@ Let’s see if everything works:
 cat /data/system/tmp/model_cpu_LML.xml
 ```
 
-Gives the following :
+Gives the following:
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <lml:lgui xmlns:lml="http://eclipse.org/ptp/lml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -228,7 +222,7 @@ Now the metric should be in the SQLite database after applying the script `llvie
 cd ${LLVIEW_DATA}/${LLVIEW_SYSTEMNAME}/perm/db
 ```
 
-And search for your new database, with our example, this gives us :
+And search for your new database, with our example, this gives us:
 
 ```sh
 ls -l|grep "model"
@@ -246,7 +240,7 @@ SELECT * FROM test.model LIMIT 10;
 PRAGMA test.table_info('model'); -- to see the column name
 ```
 
-For our example, the result of the query is the following :
+For our example, the result of the query is the following:
 
 ```
 sqlite> SELECT * FROM test.model LIMIT 10;
@@ -262,7 +256,6 @@ c2|1763647862|XXth Gen Intel(R) Core(TM) iX-XXXXXX
 ### What to do
 
 In step 2 we created a databases that gets data from the node itself, they are in no case related to the job. But for the job reporting to work we need to have the `id` of the job, .ie `jobid`. To do so we'll create an aggregation with other tables from LLview and the table `model`.
-
 
 ### Configuration
 
@@ -327,14 +320,13 @@ modelstate:
           - { name: model,    type: longstr_t }
 
 ```
-In this file :
+In this file:
 
 1. We import two files `jobmap_tables.yaml` and `nodeinfo_tables.yaml`, which contain all the data related to the nodeid and the jobid.
 2. Creates a new table named `model_aggr_by_jobid` that will contain the aggregation by jobid. The column **must** contains `jobid` otherwise it will not work.
 3. Finally, the query gets the data from the three databases to connect the jobid with the nodeid from the model table.
 
 Following the same query template should work, no matter what metrics you're using.
-
 
 ## 4. Updating the jobreport action
 
@@ -360,7 +352,7 @@ jobreport:
         index: jobid,lastts
       columns:
         ...
-        - { name : model, type: longstr_t, LLDB_from: modelstate/model_aggr_by_jobid, LL_default: "unknown-from-yaml" }
+        - { name: model, type: longstr_t, LLDB_from: modelstate/model_aggr_by_jobid, LL_default: "unknown-from-yaml" }
 ```
 Now the metric should be available in the `joblist` database. Before going any further, check that your metric is indeed there in the file:
 
@@ -368,7 +360,7 @@ Now the metric should be available in the `joblist` database. Before going any f
 ${LLVIEW_DATA}/${LLVIEW_SYSTEMNAME}/perm/db/LLmonDB_jobreport.sqlite
 ```
 
-Adapt the command from [here](#test-1).
+Adapt the command from [here](#test_1).
 
 Finally export the column in `configs/server/LLgenDB/conf_jobreport/data_json/jobreport_datafiles_json_common_joblist.yaml`.
 
@@ -409,7 +401,7 @@ So we’ll need to add a new value to the datatables. The template is located in
     children: [
         ...
       {
-        field : "model",
+        field: "model",
         cellDataType: "text",
         headerName: "Model",
         headerTooltip: "Model name of the CPU used by the job",
@@ -420,5 +412,3 @@ So we’ll need to add a new value to the datatables. The template is located in
 ```
 
 Your changes are now in place -> Check LLview to confirm everything is working as expected.
-
-< Matthias Lapu - CEA >
