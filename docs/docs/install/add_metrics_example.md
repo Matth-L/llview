@@ -2,7 +2,9 @@
 
 *Example: Adding CPU Model*
 
-To make this simple, we'll add the CPU model as a new metric. This guide is a step-by-step walkthrough of how I made it work, so please read it fully to understand. This part concerns the `Server` side of LLView.
+
+This is a step-by-step walkthrough from the beginning (collection) to end (visualisation) on how to add an example metric to LLview. Please read it fully to understand. To make this simple, we'll add the CPU model as a new metric. Since the collection is done on Prometheus, this guide will only concern the Server part of LLview.
+
 
 Let’s start with a quick recap of the workflow needed to add a new metric:
 
@@ -13,13 +15,14 @@ Let’s start with a quick recap of the workflow needed to add a new metric:
 5. Add the data to the visualization.
 
 
-# Cheat sheet of file to modify
+# Cheat sheet of files to be modified
+
 
 
 | Step | File Path                                                                  | Purpose                                                                   |
 |------|----------------------------------------------------------------------------|---------------------------------------------------------------------------|
 | 1    | `configs/plugins/promet.yml`                                               | Adding your new Prometheus query to generate LML file                     |
-| 1    | `${LLVIEW_DATA}/${LLVIEW_SYSTEMNAME}/tmp/model_cpu_LML.xml`                | Newly generated LML file                                                  |
+| 1    | `${LLVIEW_DATA}/${LLVIEW_SYSTEMNAME}/tmp/model_cpu_LML.xml`                | Newly generated LML file (generated automatically by the plugin)          |
 | 2    | `configs/server/LLgenDB/conf_cpu/model.yaml`                               | Defining an SQLite table structure for the new metric                     |
 | 2    | `configs/server/LLgenDB.yaml`                                              | Including the table in the database config                                |
 | 2    | `configs/server/workflows/LML_da_dbupdate.conf`                            | Add LML file to `LMLDBupdate` and `combineLML_all`                        |
@@ -33,9 +36,9 @@ Let’s start with a quick recap of the workflow needed to add a new metric:
 
 > Replace "model" with the corresponding metrics to add
 
-# 1. Adding the CPU Model as a Metric
+## 1. Adding the CPU Model as a Metric
 
-## What to do
+### What to do
 
 In Prometheus, the query `node_cpu_info` gives you a lot of useful data.
 First, if not done already, in your Prometheus `node_exporter` configs, make sure that `--collector.cpu.info` is **enabled**. This flag might change depending on the version you're using.
@@ -50,7 +53,7 @@ max by (instance, model_name) (node_cpu_info{job="node-compute"})
 
 This gives us the `model_name`, which is the metric we’re interested in.
 
-We’ll need LLView to run this query and create an LML file, which will later be used to update the database.
+We’ll need LLview to run this query and create an LML file, which will later be used to update the database.
 
 ## Configuration
 
@@ -84,10 +87,10 @@ prometheus:
 
 This creates :
 - A new file named : `model_cpu_LML.xml`
-- With the default type to add any kind of metrics : `node`
-- The mapping allows LLView to get the `model_name` from the query and add it to the LML file.
+- With the default type to add any kind of node metrics
+- The mapping allows LLview to get the `model_name` from the query and add it to the LML file.
 
-## Test
+### Test
 
 Let’s see if everything works:
 
@@ -133,15 +136,15 @@ Gives the following :
 
 As we can see, data are updated with the CPU model and the recent timestamp (`ts`).
 
-# 2. Adding a New Metric to the Databases
+## 2. Adding a New Metric to the Databases
 
-## What to do
+### What to do
 
 This new metric is now available as an LML file. To add this file to the databases, we’ll need to add it to `configs/server/LLgenDB.yaml`. This file contains all the SQLite databases.
 
 We’ll create a new file named `model.yaml` with three columns: the nodeid, the timestamp, and the model. This will allow us to have the CPU model for each node in our Prometheus cluster.
 
-## Configuration
+### Configuration
 
 ```yaml
 modelstate:
@@ -217,9 +220,9 @@ Finally, add the LML file to the steps `LMLDBupdate` and `combineLML_all` in the
   </step>
 ```
 
-## Test
+### Test
 
-Now the metric should be in the SQLite database after applying the script `LLView/scripts/updatedb`. To test this, go to:
+Now the metric should be in the SQLite database after applying the script `llview/scripts/updatedb`. To test this, go to:
 
 ```sh
 cd ${LLVIEW_DATA}/${LLVIEW_SYSTEMNAME}/perm/db
@@ -253,15 +256,15 @@ c2|1763647801|XXth Gen Intel(R) Core(TM) iX-XXXXXX
 c2|1763647862|XXth Gen Intel(R) Core(TM) iX-XXXXXX
 ```
 
-# 3. Creating an Aggregation with the Jobid
+## 3. Creating an Aggregation with the Jobid
 
 
-## What to do
+### What to do
 
-In step 2 we created a databases that gets data from the node itself, they are in no case related to the job. But for the job reporting to work we need to have the `id` of the job, .ie `jobid`. To do so we'll create an aggregation with other tables from LLView and the table `model`.
+In step 2 we created a databases that gets data from the node itself, they are in no case related to the job. But for the job reporting to work we need to have the `id` of the job, .ie `jobid`. To do so we'll create an aggregation with other tables from LLview and the table `model`.
 
 
-## Configuration
+### Configuration
 
 We’ll change the file `model.yaml`:
 
@@ -333,12 +336,12 @@ In this file :
 Following the same query template should work, no matter what metrics you're using.
 
 
-# 4. Updating the jobreport action
+## 4. Updating the jobreport action
 
-## What to do
+### What to do
 Now that the database that aggregates the jobid works, you can export the column you’re interested in to the file `configs/server/LLgenDB/conf_jobreport/jobreport_databases.yaml`:
 
-## Configuration
+### Configuration
 
 Add to `jobreport_databases.yaml`:
 
@@ -382,7 +385,7 @@ columns: 'jobid, ts, owner, wall, queue, account, mentor, runtime,
 ...
 ```
 
-# 5. Adding the Metric to the Visualization
+## 5. Adding the Metric to the Visualization
 
 You’ll need to decide where you want the data to be displayed. I wanted to add it to the support page. All the visualization configs are located in `configs/server/LLgenDB/conf_jobreport/views`.
 
@@ -400,7 +403,7 @@ So we’ll need to add a new value to the datatables. The template is located in
 ```yaml
 
 # Load/Memory
-- { 
+- {
     headerName: "Load/Memory",
     groupId: "Load/Memory",
     children: [
@@ -416,6 +419,6 @@ So we’ll need to add a new value to the datatables. The template is located in
   }
 ```
 
-Your changes are now in place -> Check LLView to confirm everything is working as expected.
+Your changes are now in place -> Check LLview to confirm everything is working as expected.
 
 < Matthias Lapu - CEA >
