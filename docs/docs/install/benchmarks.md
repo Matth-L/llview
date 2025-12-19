@@ -80,7 +80,7 @@ Since this module usually does not involve too much data and computation, the fo
 
 #### Updates on the DBupdate action
 
-The `git.py` plugin can be run as a step in the workflow of the [`dbupdate` action](#dbupdate-action). Since LLview updates are done every minute and the benchmarks are done in larger intervals (hourly, daily, etc.), the script `$LLVIEW_HOME/da/utils/exec_every_n_step_or_empty.pl <file_to_store_steps> X (...)` may be used to run this script every `X` times only.
+The `git.py` plugin can be run as a step in the workflow of the [`dbupdate` action](server_install.md#dbupdate-action). Since LLview updates are done every minute and the benchmarks are done in larger intervals (hourly, daily, etc.), the script `$LLVIEW_HOME/da/utils/exec_every_n_step_or_empty.pl <file_to_store_steps> X (...)` may be used to run this script every `X` times only.
 The step to run the Git plugin every hour is then:
 ```
 <!--   STEP: plugin to get info from git repos  -->
