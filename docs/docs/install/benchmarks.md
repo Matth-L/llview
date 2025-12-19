@@ -90,11 +90,11 @@ The step to run the Git plugin every hour is then:
                                 $instdir/utils/empty_LML.xml 
                                 $tmpdir/CB.xml
                                 $python $instdir/rms/git/git.py
-                                                    --config $configdir/plugins/cb/ 
+                                                    --config $LLVIEW_CONF/plugins/cb/ 
                                                     --tsfile $permdir/git_last_timestamp.dat
                                                     --singleLML $tmpdir/CB.xml
                                                     --repofolder $tmpdir/repos
-                                                    --outconfigfolder $configdir/server/LLgenDB/conf_cb/
+                                                    --outconfigfolder $LLVIEW_CONF/server/LLgenDB/conf_cb/
                                             "/>
 </step>
 ```

@@ -130,7 +130,7 @@ def gen_tab_config(empty=False,suffix="cb",folder="./"):
               # 'footer_graph_config': "/data/ll/footer_cblist.json",
               'ref': [ 'datatable' ],
               'data': {
-                'default_columns': [ 'Name', 'Timings', '#Points', 'Status' ]
+                'default_columns': [ 'Name', 'Timings', '#Runs', 'Status' ]
               }
             }
           },
@@ -1155,12 +1155,14 @@ class BenchRepo:
                                                         'sql_update_contents': {
                                                           # This SQL now correctly references the per-tab/combined_name tables
                                                           'sql': f"""DELETE FROM "cb_{combined_name}_overview";
-                INSERT INTO "cb_{combined_name}_overview" ("id", "name", "_status", "count", "min_ts", "max_ts"
+                INSERT INTO "cb_{combined_name}_overview" ("id", "name", "_status", "count", "valid_count", "min_ts", "max_ts"
                                 {params_str}{insert_metrics_str}
                                 )
                         SELECT id, "{combined_name}",
                                 (SELECT "_status" FROM "cb_{combined_name}_data" AS T2 WHERE T2.id = "cb_{combined_name}_data".id ORDER BY "ts" DESC LIMIT 1),
-                                COUNT("ts"), MIN("ts"), MAX("ts")
+                                COUNT("ts"), 
+                                SUM(CASE WHEN _status <> 'FAILED' THEN 1 ELSE 0 END),
+                                MIN("ts"), MAX("ts")
                                 {params_str}{select_metrics_str}
                         FROM "cb_{combined_name}_data"
                         GROUP by {groupby_params_str};
@@ -1173,6 +1175,7 @@ class BenchRepo:
                                   {'name': 'name',       'type': 'str_t'},
                                   {'name': '_status',    'type': 'str_t'}, 
                                   {'name': 'count',      'type': 'int_t'},
+                                  {'name': 'valid_count','type': 'int_t'},
                                   {'name': 'min_ts',     'type': 'ts_t'},
                                   {'name': 'max_ts',     'type': 'ts_t'},
                                 ]
@@ -1191,9 +1194,11 @@ class BenchRepo:
                                                         'sql_update_contents': {
                                                           'sqldebug': 1,
                                                           'sql': f"""DELETE FROM "cb_benchmarks" WHERE name="{benchname}";
-                          INSERT INTO "cb_benchmarks" ("name", "count", "min_ts", "max_ts", "_status")
+                          INSERT INTO "cb_benchmarks" ("name", "count", "valid_count", "min_ts", "max_ts", "_status")
                                     SELECT "{benchname}",
-                                          COUNT("ts"), MIN("ts"), MAX("ts"),
+                                          COUNT("ts"), 
+                                          SUM(CASE WHEN _status <> 'FAILED' THEN 1 ELSE 0 END),
+                                          MIN("ts"), MAX("ts"),
                                           (SELECT "_status" FROM "cb_{benchname}_timestamps" ORDER BY "ts" DESC LIMIT 1)
                                     FROM "cb_{benchname}_timestamps";
 """, # The last "_status" value is added here
@@ -1242,7 +1247,7 @@ class BenchRepo:
         'description': config.get('description',''),
         'ref': [ 'datatable' ],
         'data': {
-          'default_columns': [ 'Name', 'Timings', 'Parameters', '#Points', 'Status' ],
+          'default_columns': [ 'Name', 'Timings', 'Parameters', '#Runs', 'Status' ],
           'info': [{'Benchmark' : benchname}]
           }
       }
@@ -1326,9 +1331,20 @@ class BenchRepo:
         ]
       },
       {
-        'field': "count",
-        'headerName': "#Points",
-        'headerTooltip': 'Number of points',
+        'headerName': "#Runs",
+        'groupId': "#Runs",
+        'children': [
+          {
+            'field': "count",
+            'headerName': "Total", 
+            'headerTooltip': "Total number of runs",
+          },
+          {
+            'field': "valid_count",
+            'headerName': "Valid", 
+            'headerTooltip': "Number of valid runs",
+          },
+        ]
       },
       {
         'field': "_status",
@@ -1390,8 +1406,8 @@ class BenchRepo:
         'csv_delimiter': ';',
         'format': 'csv',
         'column_convert': 'min_ts->todate_std_hhmm,max_ts->todate_std_hhmm',
-        'header':  f"name;count;min_ts;max_ts;_status;{';'.join(columns)}",
-        'columns': f"name,count,min_ts,max_ts,_status,{','.join(columns_str)}",
+        'header':  f"name;count;valid_count;min_ts;max_ts;_status;{';'.join(columns)}",
+        'columns': f"name,count,valid_count,min_ts,max_ts,_status,{','.join(columns_str)}",
       }}
 
       datasets.append(dataset)
