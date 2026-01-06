@@ -27,6 +27,18 @@ hostname: 'https://llview.fz-juelich.de/#system(-dc)[ ,_]#'
 # Enabling this allows Jureptool to generate HTML files without requiring JURI.
 # CDN = Content Delivery Network
 use_cdn: false
+cdn_jquery: 'https://code.jquery.com/jquery-3.6.0.min.js'
+cdn_plotly: 'https://cdn.plot.ly/plotly-latest.min.js'
+
+# otherwise, if you want to use it locally without relying on JURI,
+# you can add the jquery.min.js and the plotly.min.js
+# ex : jquery_path: 'foo/bar/jquery.min.js'
+
+# If you leave these as null:
+#   - Jureptool will automatically use the built-in copies from JURI/js/ext
+#   - Or, if `use_cdn` is set to True, the CDN versions of jquery and plotly will be used.
+jquery_path: null
+plotly_path: null
 
 #Folder prefix to be added to items in plotlists file
 folder_prefix: '$LLVIEW_DATA/$LLVIEW_SYSTEMNAME/tmp/jobreport/data/'

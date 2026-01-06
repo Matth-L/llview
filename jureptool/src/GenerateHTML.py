@@ -779,12 +779,18 @@ def CreateHTML( config,
   </script>
 """
   if config['appearance']['use_cdn']:
-      jquery_path = "https://code.jquery.com/jquery-3.6.0.min.js"
-      plotly_path = "https://cdn.plot.ly/plotly-latest.min.js"
+      jquery_path = config['appearance'].get('cdn_jquery')
+      plotly_path = config['appearance'].get('cdn_plotly')
   else:
+    jquery_path = (
+        config['appearance'].get('jquery_path')
+        or f"{replace_vars(config['appearance']['hostname'], config['appearance'])}/js/ext/jquery.min.js"
+    )
 
-      jquery_path = f"{replace_vars(config['appearance']['hostname'], config['appearance'])}/js/ext/jquery.min.js"
-      plotly_path = f"{replace_vars(config['appearance']['hostname'], config['appearance'])}/js/ext/plotly.min.js"
+    plotly_path = (
+        config['appearance'].get('plotly_path')
+        or f"{replace_vars(config['appearance']['hostname'], config['appearance'])}/js/ext/plotly.min.js"
+    )
 
   html += f"  <script src='{jquery_path}'></script>\n"
   html += f"  <script src='{plotly_path}'></script>\n"
