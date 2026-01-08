@@ -1025,7 +1025,7 @@ def main():
 
   # Parse arguments
   parser = argparse.ArgumentParser(description="JuRepTool")
-  parser.add_argument("file", nargs="*", default="", help="File including list of running and recently-finished jobs or JSON file of a job")
+  parser.add_argument("file", nargs="+", default="", help="File including list of running and recently-finished jobs or JSON file of a job")
   parser.add_argument("--daemon", default=False, action="store_true" , help="Run as a 'daemon', i.e., in an infinite loop")
   parser.add_argument("--demo", default=False, action="store_true" , help="Run in 'demo' mode (hide usernames, project id and job names)")
   parser.add_argument("--nomove", default=False, action="store_true" , help="Don't copy files to final location")
