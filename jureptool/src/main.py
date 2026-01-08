@@ -1026,7 +1026,6 @@ def main():
   # Parse arguments
   parser = argparse.ArgumentParser(description="JuRepTool")
   parser.add_argument("file", nargs="*", default="", help="File including list of running and recently-finished jobs or JSON file of a job")
-  parser.add_argument('--infolder', nargs="+", default="", help="Folder(s) with all the .json to be processed (alternative to file option)")
   parser.add_argument("--daemon", default=False, action="store_true" , help="Run as a 'daemon', i.e., in an infinite loop")
   parser.add_argument("--demo", default=False, action="store_true" , help="Run in 'demo' mode (hide usernames, project id and job names)")
   parser.add_argument("--nomove", default=False, action="store_true" , help="Don't copy files to final location")
@@ -1045,9 +1044,6 @@ def main():
   parser.add_argument("--remail", default="", help="Receiver email to use in case of errors (default: None)")
   args = parser.parse_args()
 
-  if not args.file and not args.infolder:
-    parser.error("Either file(s) or --infolder must be specified")
-
   # Parsing configuration
   config = {}
   # Report appearance
@@ -1061,18 +1057,22 @@ def main():
   #   config['appearance']['plotly_js'] = args.plotlyjs
 
   # Configuration
-  config['file'] = []
+  config['file'] = set()
+  # changed to a set to remove duplicate, edgecase where
+  # input : fileA folderB(fileA,fileB) -> config['file']= fileA, fileA, fileB
 
-  if args.infolder:
-      for folder in args.infolder:
-        if not os.path.isdir(folder):
-            raise ValueError(f"--infolder must be a valid directory: {folder}")
-        config['file'] += [os.path.join(folder, fname) for fname in os.listdir(folder) if fname.endswith('.json')]
-        config['json'] = True
-  else:
-      for file in args.file:
-          config['file'] += glob.glob(file)
+  if args.file:
+      for element in args.file:
+        if os.path.isfile(element):
+          config['file'].update(glob.glob(element))
+        elif os.path.isdir(element):
+          config['file'].update(os.path.join(element, fname) for fname in os.listdir(element) if fname.endswith('.json'))
+        else:
+          raise FileNotFoundError(f"File not found: {element}")
       config['json'] = all([_.endswith('json') for _ in config['file']])
+  else:
+    parser.print_help()
+    raise FileNotFoundError(f"Config {args.config} does not exist")
 
   config['demo'] = args.demo
   config['html'] = not args.nohtml
